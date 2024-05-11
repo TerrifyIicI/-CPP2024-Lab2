@@ -1,4 +1,3 @@
- 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
@@ -20,7 +19,6 @@ struct QuadraticEquation {
     double c;
 };
 
-
 struct ComplexNumber {
     double real;
     double imag;
@@ -41,7 +39,7 @@ struct ComplexNumber {
 };
 
 struct Solution {
-    string equation;
+    const char* equation;
     pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
     string name;
 };
@@ -53,108 +51,18 @@ static inline string trim(const std::string &s) {
     return (wsback <= wsfront ? string() : string(wsfront, wsback));
 }
 
-class FileReader {
-private:
-    FILE* file;
-
+class EquationProcessor {
 public:
-    FileReader(const char* filename) {
-        file = fopen(filename, "rt");
-        if (file == nullptr) {
-            std::cerr << "Ошибка фйла " << filename << std::endl;
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    ~FileReader() {
-        if (file != nullptr) {
-            fclose(file);
-        }
-    }
-
-    bool isEndOfFile() {
-        return feof(file);
-    }
-
-    char* readLine() {
-        char* line = new char[256];
-        fgets(line, 256, file);
-        return line;
-    }
-
-    Solution readAndProcessLine() {
-        char* line = readLine();
-        string str(line);
-        delete[] line;
-
-        Solution sol;
-        istringstream iss(str);
-        vector<string> tokens;
-        string token;
-
-        while (iss >> token) {
-            tokens.push_back(token);
-        }
-
-        // Имя студента всегда последнее
-        sol.name = tokens.back();
-        tokens.pop_back(); // Удаляем имя из списка токенов
-
-        // Уравнение всегда первое
-        sol.equation = tokens.front();
-        tokens.erase(tokens.begin()); // Удаляем уравнение из списка токенов
-
-        // Обработка комплексных чисел
-        size_t i = 0;
-        while (i < tokens.size()) {
-            double real = 0.0;
-            double imag = 0.0;
-            bool hasImaginary = false;
-
-            // Считываем реальную часть
-            real = stod(tokens[i++]);
-
-            // Проверяем наличие следующего токена и его содержимое
-            if (i < tokens.size() && (tokens[i] == "+" || tokens[i] == "-")) {
-                string sign = tokens[i++];
-                if (i < tokens.size() && tokens[i].find('i') != string::npos) {
-                    hasImaginary = true;
-                    string imagToken = tokens[i++];
-                    imagToken.pop_back(); // Удаляем 'i'
-                    imag = stod(imagToken);
-                    if (sign == "-") {
-                        imag = -imag;
-                    }
-                }
-            }
-
-            // Создаем комплексное число
-            ComplexNumber root(real, hasImaginary ? imag : 0.0);
-            if (sol.solutions.first.real == 0 && sol.solutions.first.imag == 0) {
-                sol.solutions.first = root;
-            } else {
-                sol.solutions.second = root;
-            }
-        }
-
-        return sol;
-    }
+    QuadraticEquation parseEquation(const char* line);
+    pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation);
+    bool compareRoots(const pair<ComplexNumber, ComplexNumber>& roots1, const pair<ComplexNumber, ComplexNumber>& roots2, double epsilon);
+    bool compareEquationAndSolutions(const char* equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon);
+    Solution processLine(const string& line);
+private:
+    void addValue(QuadraticEquation& equation, int sign, double value, int power);
 };
 
-void addValue(QuadraticEquation& equation, int sign, double value, int power) {
-    if (power == 2) {
-        equation.a += sign * value;
-    }
-    else if (power == 1) {
-        equation.b += sign * value;
-    }
-    else {
-        equation.c += sign * value;
-    }
-}
-
-// parseEquation разбирает уравение из строки и записывает его в структуру QuadraticEquation
-QuadraticEquation parseEquation(const char* line) {
+QuadraticEquation EquationProcessor::parseEquation(const char* line) {
     QuadraticEquation equation = { 0, 0, 0 }; // инициализация структуры QuadraticEquation нулями
     bool isRightSide = false; // флаг, указывающий, находимся ли мы на правой стороне уравнения (после знака '=')
     int sign = 1; // текущий знак (по умолчанию положительный)
@@ -229,24 +137,151 @@ QuadraticEquation parseEquation(const char* line) {
     }
     return equation;
 }
-
-
-void printEquation(QuadraticEquation equation) {
-    printf("%lfx^2 ", equation.a);
-    if (equation.b < 0) {
-        printf("- %lfx ", -equation.b);
+void EquationProcessor::addValue(QuadraticEquation& equation, int sign, double value, int power) {
+    if (power == 2) {
+        equation.a += sign * value;
+    }
+    else if (power == 1) {
+        equation.b += sign * value;
     }
     else {
-        printf("+ %lfx ", equation.b);
+        equation.c += sign * value;
     }
-    if (equation.c < 0) {
-        printf("- %lf ", -equation.c);
-    }
-    else {
-        printf("+ %lf ", equation.c);
-    }
-    printf("= 0\n");
 }
+// calculateRoots вычисляет корни квадратного уравнения и возвращает их в виде пары комплексных чисел
+pair<ComplexNumber, ComplexNumber> EquationProcessor::calculateRoots(QuadraticEquation equation) {
+    // вычисляем дискриминант
+    double discriminant = equation.b * equation.b - 4 * equation.a * equation.c;
+
+    // проверяем, не является ли уравнение ривиальным
+    if (equation.a == 0 && equation.b == 0 && equation.c == 0) {
+        return make_pair(ComplexNumber(0.0, 0.0), ComplexNumber(0.0, 0.0));
+    }
+    // если дискриминант больше 0, то корни вещественные и различные
+    else if (discriminant > 0) {
+        double root1_real = (-equation.b + sqrt(discriminant)) / (2 * equation.a);
+        double root2_real = (-equation.b - sqrt(discriminant)) / (2 * equation.a);
+        return make_pair(ComplexNumber(root1_real, 0.0), ComplexNumber(root2_real, 0.0));
+    }
+    // если дискриминант равен 0, то корень ещественный и один
+    else if (discriminant == 0) {
+        double root_real = -equation.b / (2 * equation.a);
+        // возвращаем пару одинаковых комплексных чисел
+        return make_pair(ComplexNumber(root_real, 0.0), ComplexNumber(0.0, 0.0));
+    }
+    // если дискриминант меньше 0, то корни комплексные и сопряженные
+    else {
+        double realPart = -equation.b / (2 * equation.a);
+        double imagPart = sqrt(-discriminant) / (2 * equation.a);
+        // возвращаем пару комплексных чисел
+        return make_pair(ComplexNumber(realPart, imagPart), ComplexNumber(realPart, -imagPart));
+    }
+}
+bool EquationProcessor::compareRoots(const pair<ComplexNumber, ComplexNumber>& roots1, const pair<ComplexNumber, ComplexNumber>& roots2, double epsilon) {
+    bool isEqual1 = (std::abs(roots1.first.real - roots2.first.real) < epsilon) && (std::abs(roots1.first.imag - roots2.first.imag) < epsilon) &&
+                    (std::abs(roots1.second.real - roots2.second.real) < epsilon) && (std::abs(roots1.second.imag - roots2.second.imag) < epsilon);
+
+    bool isEqual2 = (std::abs(roots1.first.real - roots2.second.real) < epsilon) && (std::abs(roots1.first.imag - roots2.second.imag) < epsilon) &&
+                    (std::abs(roots1.second.real - roots2.first.real) < epsilon) && (std::abs(roots1.second.imag - roots2.first.imag) < epsilon);
+
+    return isEqual1 || isEqual2;
+}
+
+bool EquationProcessor::compareEquationAndSolutions(const char* equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon) {
+    QuadraticEquation parsedEquation = parseEquation(equation);
+    pair<ComplexNumber, ComplexNumber> calculatedRoots = calculateRoots(parsedEquation);
+    return compareRoots(calculatedRoots, solutions, epsilon);
+}
+Solution EquationProcessor::processLine(const string& line) {
+    Solution sol;
+    istringstream iss(line);
+    vector<string> tokens;
+    string token;
+
+    while (iss >> token) {
+        tokens.push_back(token);
+    }
+
+    // Имя студента всегда последнее
+    sol.name = tokens.back();
+    tokens.pop_back(); // Удаляем имя из списка токенов
+
+    // Уравнение всегда первое
+    sol.equation = tokens.front().c_str();
+
+    // Обработка комплексных чисел
+    size_t i = 1;
+    while (i < tokens.size()) {
+        double real = 0.0;
+        double imag = 0.0;
+        bool hasImaginary = false;
+
+        // Считываем реальную часть
+        real = stod(tokens[i++]);
+
+        // Проверяем наличие следующего токена и его содержимое
+        if (i < tokens.size() && (tokens[i] == "+" || tokens[i] == "-")) {
+            string sign = tokens[i++];
+            if (i < tokens.size() && tokens[i].find('i') != string::npos) {
+                hasImaginary = true;
+                string imagToken = tokens[i++];
+                imagToken.pop_back(); // Удаляем 'i'
+                imag = stod(imagToken);
+                if (sign == "-") {
+                    imag = -imag;
+                }
+            }
+        }
+
+        // Создаем комплексное число
+        ComplexNumber root(real, hasImaginary ? imag : 0.0);
+        if (sol.solutions.first.real == 0 && sol.solutions.first.imag == 0) {
+            sol.solutions.first = root;
+        } else {
+            sol.solutions.second = root;
+        }
+    }
+
+    return sol;
+}
+
+class FileReader {
+private:
+    FILE* file;
+    EquationProcessor equationProcessor;
+
+public:
+    FileReader(const char* filename) {
+        file = fopen(filename, "rt");
+        if (file == nullptr) {
+            std::cerr << "Ошибка фйла " << filename << std::endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    ~FileReader() {
+        if (file != nullptr) {
+            fclose(file);
+        }
+    }
+
+    bool isEndOfFile() {
+        return feof(file);
+    }
+
+    char* readLine() {
+        char* line = new char[256];
+        fgets(line, 256, file);
+        return line;
+    }
+
+    Solution readAndProcessLine() {
+        char* line = readLine();
+        string str(line);
+        delete[] line;
+        return equationProcessor.processLine(str);
+    }
+};
 
 class FileWriter {
 public:
@@ -265,63 +300,16 @@ public:
             fclose(file);
         }
     }
+
+    void writeNameAndRootComparison(const string& name, bool comparisonResult) {
+        stringstream ss;
+        ss << name << " " << comparisonResult << endl;
+        fprintf(file, "%s", ss.str().c_str());
+    }
 };
-
-// calculateRoots вычисляет корни квадратного уравнения и возвращает их в виде пары комплексных чисел
-pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation) {
-    // вычисляем дискриминант
-    double discriminant = equation.b * equation.b - 4 * equation.a * equation.c;
-
-    // проверяем, не является ли уравнение ривиальным
-    if (equation.a == 0 && equation.b == 0 && equation.c == 0) {
-        return make_pair(ComplexNumber(0.0, 0.0), ComplexNumber(0.0, 0.0));
-    }
-    // если дискриминант больше 0, то корни вещественные и различные
-    else if (discriminant > 0) {
-        double root1_real = (-equation.b + sqrt(discriminant)) / (2 * equation.a);
-        double root2_real = (-equation.b - sqrt(discriminant)) / (2 * equation.a);
-        return make_pair(ComplexNumber(root1_real, 0.0), ComplexNumber(root2_real, 0.0));
-    }
-    // если дискриминант равен 0, то корень ещественный и один
-    else if (discriminant == 0) {
-        double root_real = -equation.b / (2 * equation.a);
-        // возвращаем пару одинаковых комплексных чисел
-        return make_pair(ComplexNumber(root_real, 0.0), ComplexNumber(root_real, 0.0));
-    }
-    // если дискриминант меньше 0, то корни комплексные и сопряженные
-    else {
-        double realPart = -equation.b / (2 * equation.a);
-        double imagPart = sqrt(-discriminant) / (2 * equation.a);
-        // возвращаем пару комплексных чисел
-        return make_pair(ComplexNumber(realPart, imagPart), ComplexNumber(realPart, -imagPart));
-    }
-}
-
-void writeNameAndRootComparison(const Solution& sol, FileWriter& file) {
-    // Вычисляем корни уравнения
-    QuadraticEquation equation = parseEquation(sol.equation.c_str());
-    pair<ComplexNumber, ComplexNumber> roots = calculateRoots(equation);
-
-    // Сравниваем корни
-    bool rootsAreEqual = ((roots.first.real == roots.second.real && roots.first.imag == roots.second.imag) &&
-                         (roots.first.real == roots.second.real && roots.first.imag == -roots.second.imag)) ;
-
-    // Форматируем вывод
-    stringstream ss;
-    ss << "Студент: " << sol.name << ", корни ";
-    if (rootsAreEqual) {
-        ss << "совпадают.";
-    } else {
-        ss << "не совпадают.";
-    }
-
-    // Запись в файл
-    fprintf(file.file, "%s\n", ss.str().c_str());
-}
 
 int main() {
     char filename[16];
-    //strcpy(filename, "equations.txt");
     cout << "Введите имя входного файла: ";
     cin >> filename;
     FileReader fileReader(filename);
@@ -329,12 +317,14 @@ int main() {
     cout << "Введите имя выходного файла: ";
     cin >> filename;
     FileWriter outputFile(filename);
+    EquationProcessor equationProcessor;
+
+    double epsilon = 1e-5; //точность
 
     while (!fileReader.isEndOfFile()) {
         Solution sol = fileReader.readAndProcessLine();
-        QuadraticEquation equation = parseEquation(sol.equation.c_str());
-        printEquation(equation);
-        writeNameAndRootComparison(sol, outputFile);
+        bool rootsAreEqual = equationProcessor.compareEquationAndSolutions(sol.equation, sol.solutions, epsilon);
+        outputFile.writeNameAndRootComparison(sol.name, rootsAreEqual);
     }
 
     return 0;
