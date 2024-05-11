@@ -1,3 +1,4 @@
+ 
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
@@ -9,6 +10,7 @@
 #include <string.h>
 #include <regex>
 #include <vector>
+#include <sstream>
 
 using namespace std;
 
@@ -18,11 +20,38 @@ struct QuadraticEquation {
     double c;
 };
 
+
+struct ComplexNumber {
+    double real;
+    double imag;
+
+    ComplexNumber(double r = 0.0, double i = 0.0) : real(r), imag(i) {}
+
+    ComplexNumber operator+(const ComplexNumber& other) const {
+        return ComplexNumber(real + other.real, imag + other.imag);
+    }
+
+    friend ostream& operator<<(ostream& os, const ComplexNumber& cn) {
+        os << cn.real;
+        if (cn.imag != 0) {
+            os << (cn.imag > 0 ? " + " : " - ") << abs(cn.imag) << "i";
+        }
+        return os;
+    }
+};
+
 struct Solution {
     string equation;
-    vector<string> solutions;
+    pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
     string name;
 };
+
+// Helper function to trim whitespace from both ends of a string
+static inline string trim(const std::string &s) {
+    auto wsfront = find_if_not(s.begin(), s.end(), [](int c) { return isspace(c); });
+    auto wsback = find_if_not(s.rbegin(), s.rend(), [](int c) { return isspace(c); }).base();
+    return (wsback <= wsfront ? string() : string(wsfront, wsback));
+}
 
 class FileReader {
 private:
@@ -32,7 +61,7 @@ public:
     FileReader(const char* filename) {
         file = fopen(filename, "rt");
         if (file == nullptr) {
-            std::cerr << "Ошибка файла " << filename << std::endl;
+            std::cerr << "Ошибка фйла " << filename << std::endl;
             exit(EXIT_FAILURE);
         }
     }
@@ -60,7 +89,7 @@ public:
 
         Solution sol;
         istringstream iss(str);
-        vector<std::string> tokens;
+        vector<string> tokens;
         string token;
 
         while (iss >> token) {
@@ -69,27 +98,44 @@ public:
 
         // Имя студента всегда последнее
         sol.name = tokens.back();
-        tokens.pop_back();
+        tokens.pop_back(); // Удаляем имя из списка токенов
 
-        // Проверяем, является ли последний элемент корнем
-        regex root_regex("([\\-\\+]?\\d*\\.?\\d*(?:[\\-\\+]?\\d*\\.?\\d*i)?)");
-        if (std::regex_match(tokens.back(), root_regex)) {
-            sol.solutions.push_back(tokens.back());
-            tokens.pop_back();
-        }
+        // Уравнение всегда первое
+        sol.equation = tokens.front();
+        tokens.erase(tokens.begin()); // Удаляем уравнение из списка токенов
 
-        // Проверяем, является ли следующий элемент корнем
-        if (!tokens.empty() && std::regex_match(tokens.back(), root_regex)) {
-            sol.solutions.push_back(tokens.back());
-            tokens.pop_back();
-        }
+        // Обработка комплексных чисел
+        size_t i = 0;
+        while (i < tokens.size()) {
+            double real = 0.0;
+            double imag = 0.0;
+            bool hasImaginary = false;
 
-        // Остальное считаем уравнением
-        std::ostringstream oss;
-        for (const auto& t : tokens) {
-            oss << t << " ";
+            // Считываем реальную часть
+            real = stod(tokens[i++]);
+
+            // Проверяем наличие следующего токена и его содержимое
+            if (i < tokens.size() && (tokens[i] == "+" || tokens[i] == "-")) {
+                string sign = tokens[i++];
+                if (i < tokens.size() && tokens[i].find('i') != string::npos) {
+                    hasImaginary = true;
+                    string imagToken = tokens[i++];
+                    imagToken.pop_back(); // Удаляем 'i'
+                    imag = stod(imagToken);
+                    if (sign == "-") {
+                        imag = -imag;
+                    }
+                }
+            }
+
+            // Создаем комплексное число
+            ComplexNumber root(real, hasImaginary ? imag : 0.0);
+            if (sol.solutions.first.real == 0 && sol.solutions.first.imag == 0) {
+                sol.solutions.first = root;
+            } else {
+                sol.solutions.second = root;
+            }
         }
-        sol.equation = oss.str();
 
         return sol;
     }
@@ -116,8 +162,8 @@ QuadraticEquation parseEquation(const char* line) {
     int i = 0;
 
     while (i < strlen(line)) {
-        if (line[i] >= '0' && line[i] <= '9') { // если текущий символ - цифра
-            value = value * 10 + (line[i] - '0'); // добавляем цифру к текущему значению
+        if (line[i] >= '0' && line[i] <= '9') { // если текущий имвол - цифра
+            value = value * 10 + (line[i] - '0'); // добавляем цифру к текущему значеню
         }
         else if (line[i] == 'x') { // если текущий символ - 'x' (переменная)
             i++;
@@ -136,7 +182,7 @@ QuadraticEquation parseEquation(const char* line) {
                 }
                 else if (line[i + 1] == '0') { // если степень равна 0
                     i++;
-                    addValue(equation, sign, value, 0); // добавляем значение к свободному члену
+                    addValue(equation, sign, value, 0); // обавляем значение к свободному лену
                 }
                 else { // если степень равна 1
                     addValue(equation, sign, value, 1); // добавляем значение к коэффициенту при x
@@ -148,7 +194,7 @@ QuadraticEquation parseEquation(const char* line) {
                 if (value == 0) {
                     value = 1;
                 }
-                addValue(equation, sign, value, 1); // добавляем значен  е к коэффициенту при x
+                addValue(equation, sign, value, 1); // обавляем значение к коэффициенту при x
             }
             value = 0;
         }
@@ -167,7 +213,7 @@ QuadraticEquation parseEquation(const char* line) {
                 addValue(equation, sign, value, 0); // добавляем значение к свободному члену
                 value = 0;
             }
-            isRightSide = true; // переходим на правую сторону уравнения
+            isRightSide = true; // переходим н правую сторону уравнения
             sign = -1; // меняем знак на противоположный
         }
         i++;
@@ -221,25 +267,14 @@ public:
     }
 };
 
-struct ComplexNumber {
-    double real;
-    double imag;
-
-    ComplexNumber(double r = 0.0, double i = 0.0) : real(r), imag(i) {}
-
-    ComplexNumber operator+(const ComplexNumber& other) const {
-        return ComplexNumber(real + other.real, imag + other.imag);
-    }
-};
-
-// calculateRoots вычисляет корни квадратного уравнения и   озвращает их в виде пары комплексных чисел
+// calculateRoots вычисляет корни квадратного уравнения и возвращает их в виде пары комплексных чисел
 pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation) {
     // вычисляем дискриминант
     double discriminant = equation.b * equation.b - 4 * equation.a * equation.c;
 
-    // проверяем, не является ли уравнение тривиальным
+    // проверяем, не является ли уравнение ривиальным
     if (equation.a == 0 && equation.b == 0 && equation.c == 0) {
-        throw invalid_argument(" 0");
+        return make_pair(ComplexNumber(0.0, 0.0), ComplexNumber(0.0, 0.0));
     }
     // если дискриминант больше 0, то корни вещественные и различные
     else if (discriminant > 0) {
@@ -247,7 +282,7 @@ pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation) {
         double root2_real = (-equation.b - sqrt(discriminant)) / (2 * equation.a);
         return make_pair(ComplexNumber(root1_real, 0.0), ComplexNumber(root2_real, 0.0));
     }
-    // если дискриминант равен 0, то корень вещественный и один
+    // если дискриминант равен 0, то корень ещественный и один
     else if (discriminant == 0) {
         double root_real = -equation.b / (2 * equation.a);
         // возвращаем пару одинаковых комплексных чисел
@@ -262,56 +297,26 @@ pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation) {
     }
 }
 
+void writeNameAndRootComparison(const Solution& sol, FileWriter& file) {
+    // Вычисляем корни уравнения
+    QuadraticEquation equation = parseEquation(sol.equation.c_str());
+    pair<ComplexNumber, ComplexNumber> roots = calculateRoots(equation);
 
-void writeToFile(const pair<ComplexNumber, ComplexNumber>& roots, FileWriter& file) {
-    const int precision = 5;//точность
-    const int length = 20;
-    char buffer[2 * (precision + length) + 1];//буфер для записи
+    // Сравниваем корни
+    bool rootsAreEqual = ((roots.first.real == roots.second.real && roots.first.imag == roots.second.imag) &&
+                         (roots.first.real == roots.second.real && roots.first.imag == -roots.second.imag)) ;
 
-    ComplexNumber root1 = roots.first;
-    ComplexNumber root2 = roots.second;
-
+    // Форматируем вывод
     stringstream ss;
-
-    ss << fixed << setprecision(precision) << (abs(root1.real) < pow(10, -precision) ? 0.0 : root1.real);
-
-    string root1_str = (abs(root1.real) < pow(10, -precision) ? " " + ss.str() : (root1.real > 0 ? " " : "") + to_string(root1.real));
-    string root2_str = (abs(root2.real) < pow(10, -precision) ? " " + ss.str() : (root2.real > 0 ? " " : "") + to_string(root2.real));
-
-    if ((root1.imag == 0) && (root1.imag == 0)) {
-        root1_str += "";
-    }
-    else {
-        root1_str += (root1.imag >= 0 ? " + " : " - ") + to_string(abs(root1.imag)) + "i";
+    ss << "Студент: " << sol.name << ", корни ";
+    if (rootsAreEqual) {
+        ss << "совпадают.";
+    } else {
+        ss << "не совпадают.";
     }
 
-    if ((root2.imag == 0) && (root2.imag == 0)) {
-        root2_str += "";
-    }
-    else {
-        root2_str += (root2.imag >= 0 ? " + " : " - ") + to_string(abs(root2.imag)) + "i";
-    }
-
-
-    if ((root1.real == root2.real) && (root1.imag == root2.imag)) {
-        fprintf(file.file, "%-*s\n", length, root1_str.c_str());
-    }
-    else if ((root1.imag == 0) && (root1.imag == 0)) {
-        fprintf(file.file, "%-*s    %-*s\n", length, root1_str.c_str(), length, root2_str.c_str());
-    }
-    else {
-        fprintf(file.file, "%-*s   %-*s\n", length, root1_str.c_str(), length, root2_str.c_str());
-    }
-}
-
-void solveAndWrite(QuadraticEquation equation, FileWriter& file) {
-    try {
-        pair<ComplexNumber, ComplexNumber> roots = calculateRoots(equation);
-        writeToFile(roots, file);
-    }
-    catch (const invalid_argument& e) {
-        fprintf(file.file, "%s\n", e.what());
-    }
+    // Запись в файл
+    fprintf(file.file, "%s\n", ss.str().c_str());
 }
 
 int main() {
@@ -329,8 +334,9 @@ int main() {
         Solution sol = fileReader.readAndProcessLine();
         QuadraticEquation equation = parseEquation(sol.equation.c_str());
         printEquation(equation);
-        solveAndWrite(equation, outputFile);
+        writeNameAndRootComparison(sol, outputFile);
     }
 
     return 0;
 }
+
