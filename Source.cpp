@@ -319,7 +319,7 @@ int main() {
     FileWriter outputFile(filename);
     EquationProcessor equationProcessor;
 
-    double epsilon = 1e-5; //точность
+    double epsilon = 1e-5; //точность 
 
     while (!fileReader.isEndOfFile()) {
         Solution sol = fileReader.readAndProcessLine();
@@ -329,4 +329,3 @@ int main() {
 
     return 0;
 }
-
