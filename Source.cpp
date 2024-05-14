@@ -1,8 +1,6 @@
-#define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <fstream>
 #include <cstdlib>
-#include <cmath>
 #include <iomanip>
 #include <string>
 #include <complex>
@@ -10,337 +8,17 @@
 #include <regex>
 #include <vector>
 #include <sstream>
-
+#include "DataStructures.h"
+#include "EquationProcessor.h"
+#define _CRT_SECURE_NO_WARNINGS
 using namespace std;
 
-struct QuadraticEquation {
-    double a;
-    double b;
-    double c;
-};
-
-struct ComplexNumber {
-    double real;
-    double imag;
-
-    ComplexNumber(double r = 0.0, double i = 0.0) : real(r), imag(i) {}
-
-    ComplexNumber operator+(const ComplexNumber& other) const {
-        return ComplexNumber(real + other.real, imag + other.imag);
-    }
-
-    friend ostream& operator<<(ostream& os, const ComplexNumber& cn) {
-        os << cn.real;
-        if (cn.imag != 0) {
-            os << (cn.imag > 0 ? " + " : " - ") << abs(cn.imag) << "i";
-        }
-        return os;
-    }
-};
 
 struct Solution {
     string equation;
     pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
     string name;
 };
-
-enum class StateNum {
-    START,
-    MINUS,
-    INTEGER,
-    DOT,
-    FRACTION,
-    IMAGINARY,
-    SPACE,
-    SIGN,
-    ERROR
-};
-
-ComplexNumber is_valid_number(const string& number) {
-    double real = 0.0;
-    double image = 0.0;
-
-    StateNum state = StateNum::START;
-    int dot_count = 0;
-    int imaginary_flag = 0;
-    bool sign_found = false;
-    bool minus_found = false;
-    string current_token = "";
-    int i = 0;
-
-    while (i < number.length()) {
-        char c = number[i];
-
-        if (isdigit(c) || (dot_count <= 1 && c == '.')) {
-            current_token += c;
-            state = StateNum::INTEGER;
-            if (dot_count == 1) {
-                state = StateNum::FRACTION;
-            }
-        } else if (c == '-') {
-            if (state == StateNum::START) {
-               current_token += c;
-            } else if (state == StateNum::INTEGER) {
-                minus_found = true;
-                sign_found = true;
-                state = StateNum::SIGN;
-            }
-        } else if (c == '+') {
-            if (state == StateNum::INTEGER) {
-                minus_found = false;
-                sign_found = true;
-                state = StateNum::SIGN;
-            }
-        } else if (c == 'i') {
-            if (state == StateNum::INTEGER || state == StateNum::FRACTION) {
-                imaginary_flag++;
-                state = StateNum::IMAGINARY;
-            }
-        } else if (c == ' ') {
-            // Просто пропустим пробелы
-        } else {
-            state = StateNum::ERROR;
-        }
-
-        if (state == StateNum::ERROR) {
-            return ComplexNumber(0, 0);
-        }
-
-        if (state == StateNum::IMAGINARY && !current_token.empty()) {
-            stringstream ss(current_token);
-            double token_value;
-            ss >> token_value;
-
-            if (minus_found) {
-                image = -token_value;
-                minus_found = false;
-            } else {
-                image = token_value;
-            }
-
-            current_token = "";
-        }
-
-        if (state == StateNum::SIGN) {
-            stringstream ss(current_token);
-            double token_value;
-            ss >> token_value;
-
-            if (sign_found && imaginary_flag == 0) {
-                real = token_value;
-            } else {
-                image = token_value;
-            }
-            current_token = ""; // Обнуляем токен, так как теперь ожидается мнимая часть
-        }
-
-        i++;
-    }
-
-    if (!current_token.empty()) {
-        stringstream ss(current_token);
-        double token_value;
-        ss >> token_value;
-
-        if (imaginary_flag == 1) {
-            image = token_value;
-        } else {
-            real = token_value;
-        }
-    }
-
-    if (sign_found && !imaginary_flag) {
-        // Сгенерировать ошибку, если поднят флаг знака, но не поднят флаг image и достигнут конец строки
-        return ComplexNumber(0, 0);
-    }
-
-    return ComplexNumber(real, image);
-}
-
-class EquationProcessor {
-public:
-    QuadraticEquation parseEquation(const char* line);
-    pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation);
-    bool compareRoots(const pair<ComplexNumber, ComplexNumber>& roots1, const pair<ComplexNumber, ComplexNumber>& roots2, double epsilon);
-    bool compareEquationAndSolutions(const string& equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon);
-private:
-    void addValue(QuadraticEquation& equation, int sign, double value, int power);
-};
-
-QuadraticEquation EquationProcessor::parseEquation(const char* line) {
-    QuadraticEquation equation = { 0, 0, 0 }; // инициализация структуры QuadraticEquation нулями
-    bool isRightSide = false; // флаг, указывающий, находимся ли мы на правой стороне уравнения (после знака '=')
-    int sign = 1; // текущий знак (по умолчанию положительный)
-    double value = 0; // текущее значение (коэффициент при переменной)
-    int i = 0;
-
-    while (i < strlen(line)) {
-        if (line[i] >= '0' && line[i] <= '9') { // если текущий имвол - цифра
-            value = value * 10 + (line[i] - '0'); // добавляем цифру к текущему значеню
-        }
-        else if (line[i] == 'x') { // если текущий символ - 'x' (переменная)
-            i++;
-            if (value == 0) {
-                value = 1;
-            }
-            if (line[i] == '^') { // если после 'x' следует '^' (степень)
-                if ((line[i + 1] > '2') || (i < strlen(line) - 2 && line[i + 2] >= '0' && line[i + 2] <= '9')) {
-                    cout << "Это ловушка, уравнение не квадратное" << endl; // если степень больше 2, то уравнение не квадратное
-                    equation = { 0, 0, 0 };
-                    return equation;
-                }
-                if (line[i + 1] == '2') { // если степень равна 2
-                    i++;
-                    addValue(equation, sign, value, 2); // добавляем значение к коэффициенту при x^2
-                }
-                else if (line[i + 1] == '0') { // если степень равна 0
-                    i++;
-                    addValue(equation, sign, value, 0); // обавляем значение к свободному лену
-                }
-                else { // если степень равна 1
-                    addValue(equation, sign, value, 1); // добавляем значение к коэффициенту при x
-                }
-                value = 0;
-            }
-            else { // если после 'x' нет '^', то степень равна 1
-                i--;
-                if (value == 0) {
-                    value = 1;
-                }
-                addValue(equation, sign, value, 1); // обавляем значение к коэффициенту при x
-            }
-            value = 0;
-        }
-        else if (line[i] == '+' || line[i] == '-') { // если текущий символ - '+' или '-'
-            if (value != 0) {
-                addValue(equation, sign, value, 0); // добавляем значение к свободному члену
-                value = 0;
-            }
-            sign = (line[i] == '+') ? 1 : -1; // меняем знак на противоположный
-            if (isRightSide) {
-                sign *= -1;
-            }
-        }
-        else if (line[i] == '=') { // если текущий символ - '='
-            if (value != 0) {
-                addValue(equation, sign, value, 0); // добавляем значение к свободному члену
-                value = 0;
-            }
-            isRightSide = true; // переходим н правую сторону уравнения
-            sign = -1; // меняем знак на противоположный
-        }
-        i++;
-    }
-
-    if (value != 0) {
-        addValue(equation, sign, value, 0); // добавляем значение к свободному члену
-    }
-    if (equation.a == 0) {
-        cout << "Это ловушка, уравнение не квадратное" << endl; // если коэффициент при x^2 равен 0, то уравнение не квадратное
-        equation = { 0, 0, 0 };
-        return equation;
-    }
-    return equation;
-}
-void EquationProcessor::addValue(QuadraticEquation& equation, int sign, double value, int power) {
-    if (power == 2) {
-        equation.a += sign * value;
-    }
-    else if (power == 1) {
-        equation.b += sign * value;
-    }
-    else {
-        equation.c += sign * value;
-    }
-}
-// calculateRoots вычисляет корни квадратного уравнения и возвращает их в виде пары комплексных чисел
-pair<ComplexNumber, ComplexNumber> EquationProcessor::calculateRoots(QuadraticEquation equation) {
-    // вычисляем дискриминант
-    double discriminant = equation.b * equation.b - 4 * equation.a * equation.c;
-
-    // проверяем, не является ли уравнение ривиальным
-    if (equation.a == 0 && equation.b == 0 && equation.c == 0) {
-        return make_pair(ComplexNumber(0.0, 0.0), ComplexNumber(0.0, 0.0));
-    }
-    // если дискриминант больше 0, то корни вещественные и различные
-    else if (discriminant > 0) {
-        double root1_real = (-equation.b + sqrt(discriminant)) / (2 * equation.a);
-        double root2_real = (-equation.b - sqrt(discriminant)) / (2 * equation.a);
-        return make_pair(ComplexNumber(root1_real, 0.0), ComplexNumber(root2_real, 0.0));
-    }
-    // если дискриминант равен 0, то корень еущественный и один
-    else if (discriminant == 0) {
-        double root_real = -equation.b / (2 * equation.a);
-        // возвращаем пару одинаковых комплексных чисел
-        return make_pair(ComplexNumber(root_real, 0.0), ComplexNumber(0.0, 0.0));
-    }
-    // если дискриминант меньше 0, то корни комплексные и сопряженные
-    else {
-        double realPart = -equation.b / (2 * equation.a);
-        double imagPart = sqrt(-discriminant) / (2 * equation.a);
-        // возвращаем пару комплексных чисел
-        return make_pair(ComplexNumber(realPart, imagPart), ComplexNumber(realPart, -imagPart));
-    }
-}
-bool EquationProcessor::compareRoots(const pair<ComplexNumber, ComplexNumber>& roots1, const pair<ComplexNumber, ComplexNumber>& roots2, double epsilon) {
-    bool isEqual1 = (std::abs(roots1.first.real - roots2.first.real) < epsilon) && (std::abs(roots1.first.imag - roots2.first.imag) < epsilon) &&
-                    (std::abs(roots1.second.real - roots2.second.real) < epsilon) && (std::abs(roots1.second.imag - roots2.second.imag) < epsilon);
-
-    bool isEqual2 = (std::abs(roots1.first.real - roots2.second.real) < epsilon) && (std::abs(roots1.first.imag - roots2.second.imag) < epsilon) &&
-                    (std::abs(roots1.second.real - roots2.first.real) < epsilon) && (std::abs(roots1.second.imag - roots2.first.imag) < epsilon);
-
-    return isEqual1 || isEqual2;
-}
-
-bool EquationProcessor::compareEquationAndSolutions(const string& equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon) {
-    QuadraticEquation parsedEquation = parseEquation(equation.c_str());
-    pair<ComplexNumber, ComplexNumber> calculatedRoots = calculateRoots(parsedEquation);
-    return compareRoots(calculatedRoots, solutions, epsilon);
-}
-Solution processLine(const string& line) {
-    Solution sol;
-
-    // 1. Извлечь уравнение
-    size_t eqPos = line.find(' ');
-    sol.equation = line.substr(0, eqPos);
-
-    // 2. Извлечь имя студента
-    size_t namePos = line.find_last_of(' ');
-    sol.name = line.substr(namePos + 1);
-    string solutionsStr = line.substr(eqPos + 1, namePos - eqPos - 1);
-
-    // Удаляем пробелы перед именем студента
-    solutionsStr = solutionsStr.substr(0, solutionsStr.find_last_not_of(' ') + 1);
-
-    // 3. Обработать решения
-    size_t delimPos; // Позиция разделительного пробела
-
-    // Если в строке есть две мнимые части (d), то разделительный пробел идет после первой мнимой части (d)
-    if (solutionsStr.find("i ") != string::npos) {
-        delimPos = solutionsStr.find("i ") + 1;
-        sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
-        sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
-    }
-    // Если в строке нет мнимых частей (d), то разделительный пробел идет после первого числа
-    else if (solutionsStr.find(" ") != string::npos) {
-        delimPos = solutionsStr.find(" ") + 1;
-        sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
-        sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
-    }
-    // Если в строке одна мнимая часть (d), то это одно комплексное число, которое включает в себя и вещественную, и мнимую части
-    else if (solutionsStr.find("i") != string::npos) {
-        sol.solutions.first = is_valid_number(solutionsStr);
-        sol.solutions.second = ComplexNumber(0, 0);
-    }
-    // Если в строке только одно вещественное число (real), то это одно число
-    else {
-        sol.solutions.first = is_valid_number(solutionsStr);
-        sol.solutions.second = ComplexNumber(0, 0);
-    }
-
-    return sol; // Возврат решения
-}
-
 class FileReader {
 private:
     FILE* file;
@@ -350,7 +28,7 @@ public:
     FileReader(const char* filename) {
         file = fopen(filename, "rt");
         if (file == nullptr) {
-            std::cerr << "Ошибка фйла " << filename << std::endl;
+            cerr << "Ошибка файла " << filename << endl;
             exit(EXIT_FAILURE);
         }
     }
@@ -381,24 +59,72 @@ public:
         char* line = readLine();
         return processLine(line);
     }
+
+    static Solution processLine(const string& line) {
+        Solution sol;
+
+        // 1. Извлечь уравнение
+        size_t eqPos = line.find(' ');
+        sol.equation = line.substr(0, eqPos);
+
+        // 2. Извлечь имя студента
+        size_t namePos = line.find_last_of(' ');
+        sol.name = line.substr(namePos + 1);
+        string solutionsStr = line.substr(eqPos + 1, namePos - eqPos - 1);
+
+        // Удаляем пробелы перед именем студента
+        solutionsStr = solutionsStr.substr(0, solutionsStr.find_last_not_of(' ') + 1);
+
+        // 3. Обработать решения
+        size_t delimPos; // Позиция разделительного пробела
+
+        // Если в строке есть две мнимые части (d), то разделительный пробел идет после первой мнимой части (d)
+        if (solutionsStr.find("i ") != string::npos) {
+            delimPos = solutionsStr.find("i ") + 1;
+            sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
+            sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
+        }
+        // Если в строке нет мнимых частей (d), то разделительный пробел идет после первого числа
+        else if (solutionsStr.find(" ") != string::npos) {
+            delimPos = solutionsStr.find(" ") + 1;
+            sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
+            sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
+        }
+        // Если в строке одна мнимая часть (d), то это одно комплексное число, которое включает в себя и вещественную, и мнимую части
+        else if (solutionsStr.find("i") != string::npos) {
+            sol.solutions.first = is_valid_number(solutionsStr);
+            sol.solutions.second = ComplexNumber(0, 0);
+        }
+        // Если в строке только одно вещественное число (real), то это одно число
+        else {
+            sol.solutions.first = is_valid_number(solutionsStr);
+            sol.solutions.second = ComplexNumber(0, 0);
+        }
+
+        return sol; // Возврат решения
+    }
 };
 
 class FileWriter {
 public:
     FILE* file;
+
     FileWriter(const char* name) {
         file = fopen(name, "wt");
     }
-    int write(const char* string) {
-        if (strlen(string) == 1)
-            return 0;
-        fputs(string, file);
-        return 1;
-    }
+
     ~FileWriter() {
         if (file != nullptr) {
             fclose(file);
         }
+    }
+
+    int write(const char* string) {
+        if (strlen(string) == 1) {
+            return 0;
+        }
+        fputs(string, file);
+        return 1;
     }
 
     void writeNameAndRootComparison(const string& name, bool comparisonResult) {
@@ -409,6 +135,7 @@ public:
 };
 
 int main() {
+    setlocale(LC_ALL, "ru_RU.UTF-8");
     char filename[16];
     cout << "Введите имя входного файла: ";
     cin >> filename;
@@ -419,7 +146,7 @@ int main() {
     FileWriter outputFile(filename);
     EquationProcessor equationProcessor;
 
-    double epsilon = 1e-5; //точность 
+    double epsilon = 1e-5; // точность
 
     while (!fileReader.isEndOfFile()) {
         Solution sol = fileReader.readAndProcessLine();
