@@ -12,6 +12,9 @@
 # Except cpp files
 !*.cpp
 
+# Except cpp files
+!*.h
+
 # Except text files
 !*.txt
 
