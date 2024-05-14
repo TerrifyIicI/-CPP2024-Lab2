@@ -39,16 +39,122 @@ struct ComplexNumber {
 };
 
 struct Solution {
-    const char* equation;
+    string equation;
     pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
     string name;
 };
 
-// Helper function to trim whitespace from both ends of a string
-static inline string trim(const std::string &s) {
-    auto wsfront = find_if_not(s.begin(), s.end(), [](int c) { return isspace(c); });
-    auto wsback = find_if_not(s.rbegin(), s.rend(), [](int c) { return isspace(c); }).base();
-    return (wsback <= wsfront ? string() : string(wsfront, wsback));
+enum class StateNum {
+    START,
+    MINUS,
+    INTEGER,
+    DOT,
+    FRACTION,
+    IMAGINARY,
+    SPACE,
+    SIGN,
+    ERROR
+};
+
+ComplexNumber is_valid_number(const string& number) {
+    double real = 0.0;
+    double image = 0.0;
+
+    StateNum state = StateNum::START;
+    int dot_count = 0;
+    int imaginary_flag = 0;
+    bool sign_found = false;
+    bool minus_found = false;
+    string current_token = "";
+    int i = 0;
+
+    while (i < number.length()) {
+        char c = number[i];
+
+        if (isdigit(c) || (dot_count <= 1 && c == '.')) {
+            current_token += c;
+            state = StateNum::INTEGER;
+            if (dot_count == 1) {
+                state = StateNum::FRACTION;
+            }
+        } else if (c == '-') {
+            if (state == StateNum::START) {
+               current_token += c;
+            } else if (state == StateNum::INTEGER) {
+                minus_found = true;
+                sign_found = true;
+                state = StateNum::SIGN;
+            }
+        } else if (c == '+') {
+            if (state == StateNum::INTEGER) {
+                minus_found = false;
+                sign_found = true;
+                state = StateNum::SIGN;
+            }
+        } else if (c == 'i') {
+            if (state == StateNum::INTEGER || state == StateNum::FRACTION) {
+                imaginary_flag++;
+                state = StateNum::IMAGINARY;
+            }
+        } else if (c == ' ') {
+            // Просто пропустим пробелы
+        } else {
+            state = StateNum::ERROR;
+        }
+
+        if (state == StateNum::ERROR) {
+            return ComplexNumber(0, 0);
+        }
+
+        if (state == StateNum::IMAGINARY && !current_token.empty()) {
+            stringstream ss(current_token);
+            double token_value;
+            ss >> token_value;
+
+            if (minus_found) {
+                image = -token_value;
+                minus_found = false;
+            } else {
+                image = token_value;
+            }
+
+            current_token = "";
+        }
+
+        if (state == StateNum::SIGN) {
+            stringstream ss(current_token);
+            double token_value;
+            ss >> token_value;
+
+            if (sign_found && imaginary_flag == 0) {
+                real = token_value;
+            } else {
+                image = token_value;
+            }
+            current_token = ""; // Обнуляем токен, так как теперь ожидается мнимая часть
+        }
+
+        i++;
+    }
+
+    if (!current_token.empty()) {
+        stringstream ss(current_token);
+        double token_value;
+        ss >> token_value;
+
+        if (imaginary_flag == 1) {
+            image = token_value;
+        } else {
+            real = token_value;
+        }
+    }
+
+    if (sign_found && !imaginary_flag) {
+        // Сгенерировать ошибку, если поднят флаг знака, но не поднят флаг image и достигнут конец строки
+        return ComplexNumber(0, 0);
+    }
+
+    return ComplexNumber(real, image);
 }
 
 class EquationProcessor {
@@ -56,8 +162,7 @@ public:
     QuadraticEquation parseEquation(const char* line);
     pair<ComplexNumber, ComplexNumber> calculateRoots(QuadraticEquation equation);
     bool compareRoots(const pair<ComplexNumber, ComplexNumber>& roots1, const pair<ComplexNumber, ComplexNumber>& roots2, double epsilon);
-    bool compareEquationAndSolutions(const char* equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon);
-    Solution processLine(const string& line);
+    bool compareEquationAndSolutions(const string& equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon);
 private:
     void addValue(QuadraticEquation& equation, int sign, double value, int power);
 };
@@ -163,7 +268,7 @@ pair<ComplexNumber, ComplexNumber> EquationProcessor::calculateRoots(QuadraticEq
         double root2_real = (-equation.b - sqrt(discriminant)) / (2 * equation.a);
         return make_pair(ComplexNumber(root1_real, 0.0), ComplexNumber(root2_real, 0.0));
     }
-    // если дискриминант равен 0, то корень ещественный и один
+    // если дискриминант равен 0, то корень еущественный и один
     else if (discriminant == 0) {
         double root_real = -equation.b / (2 * equation.a);
         // возвращаем пару одинаковых комплексных чисел
@@ -187,62 +292,53 @@ bool EquationProcessor::compareRoots(const pair<ComplexNumber, ComplexNumber>& r
     return isEqual1 || isEqual2;
 }
 
-bool EquationProcessor::compareEquationAndSolutions(const char* equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon) {
-    QuadraticEquation parsedEquation = parseEquation(equation);
+bool EquationProcessor::compareEquationAndSolutions(const string& equation, const pair<ComplexNumber, ComplexNumber>& solutions, double epsilon) {
+    QuadraticEquation parsedEquation = parseEquation(equation.c_str());
     pair<ComplexNumber, ComplexNumber> calculatedRoots = calculateRoots(parsedEquation);
     return compareRoots(calculatedRoots, solutions, epsilon);
 }
-Solution EquationProcessor::processLine(const string& line) {
+Solution processLine(const string& line) {
     Solution sol;
-    istringstream iss(line);
-    vector<string> tokens;
-    string token;
 
-    while (iss >> token) {
-        tokens.push_back(token);
+    // 1. Извлечь уравнение
+    size_t eqPos = line.find(' ');
+    sol.equation = line.substr(0, eqPos);
+
+    // 2. Извлечь имя студента
+    size_t namePos = line.find_last_of(' ');
+    sol.name = line.substr(namePos + 1);
+    string solutionsStr = line.substr(eqPos + 1, namePos - eqPos - 1);
+
+    // Удаляем пробелы перед именем студента
+    solutionsStr = solutionsStr.substr(0, solutionsStr.find_last_not_of(' ') + 1);
+
+    // 3. Обработать решения
+    size_t delimPos; // Позиция разделительного пробела
+
+    // Если в строке есть две мнимые части (d), то разделительный пробел идет после первой мнимой части (d)
+    if (solutionsStr.find("i ") != string::npos) {
+        delimPos = solutionsStr.find("i ") + 1;
+        sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
+        sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
+    }
+    // Если в строке нет мнимых частей (d), то разделительный пробел идет после первого числа
+    else if (solutionsStr.find(" ") != string::npos) {
+        delimPos = solutionsStr.find(" ") + 1;
+        sol.solutions.first = is_valid_number(solutionsStr.substr(0, delimPos));
+        sol.solutions.second = is_valid_number(solutionsStr.substr(delimPos));
+    }
+    // Если в строке одна мнимая часть (d), то это одно комплексное число, которое включает в себя и вещественную, и мнимую части
+    else if (solutionsStr.find("i") != string::npos) {
+        sol.solutions.first = is_valid_number(solutionsStr);
+        sol.solutions.second = ComplexNumber(0, 0);
+    }
+    // Если в строке только одно вещественное число (real), то это одно число
+    else {
+        sol.solutions.first = is_valid_number(solutionsStr);
+        sol.solutions.second = ComplexNumber(0, 0);
     }
 
-    // Имя студента всегда последнее
-    sol.name = tokens.back();
-    tokens.pop_back(); // Удаляем имя из списка токенов
-
-    // Уравнение всегда первое
-    sol.equation = tokens.front().c_str();
-
-    // Обработка комплексных чисел
-    size_t i = 1;
-    while (i < tokens.size()) {
-        double real = 0.0;
-        double imag = 0.0;
-        bool hasImaginary = false;
-
-        // Считываем реальную часть
-        real = stod(tokens[i++]);
-
-        // Проверяем наличие следующего токена и его содержимое
-        if (i < tokens.size() && (tokens[i] == "+" || tokens[i] == "-")) {
-            string sign = tokens[i++];
-            if (i < tokens.size() && tokens[i].find('i') != string::npos) {
-                hasImaginary = true;
-                string imagToken = tokens[i++];
-                imagToken.pop_back(); // Удаляем 'i'
-                imag = stod(imagToken);
-                if (sign == "-") {
-                    imag = -imag;
-                }
-            }
-        }
-
-        // Создаем комплексное число
-        ComplexNumber root(real, hasImaginary ? imag : 0.0);
-        if (sol.solutions.first.real == 0 && sol.solutions.first.imag == 0) {
-            sol.solutions.first = root;
-        } else {
-            sol.solutions.second = root;
-        }
-    }
-
-    return sol;
+    return sol; // Возврат решения
 }
 
 class FileReader {
@@ -271,15 +367,19 @@ public:
 
     char* readLine() {
         char* line = new char[256];
-        fgets(line, 256, file);
+        if (fgets(line, 256, file) != nullptr) {
+            // Удаляем символ перевода строки ('\n') и заменяем его символом окончания строки ('\0')
+            int len = strlen(line);
+            if (len > 0 && line[len - 1] == '\n') {
+                line[len - 1] = '\0';
+            }
+        }
         return line;
     }
 
     Solution readAndProcessLine() {
         char* line = readLine();
-        string str(line);
-        delete[] line;
-        return equationProcessor.processLine(str);
+        return processLine(line);
     }
 };
 
