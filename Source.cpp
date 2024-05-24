@@ -14,12 +14,12 @@
 #include <map>
 using namespace std;
 
+
 struct Solution {
     string equation;
     pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
     string name;
 };
-
 
 Solution processLine(const string& line) {
     Solution sol;
@@ -194,7 +194,6 @@ public:
         fprintf(file, "%s", ss.str().c_str());
     }
 };
-
 class Sorting {
     public:
     static void sortByRatingThenByName(vector<pair<string, StudentRating>>& studentInfosVector) {
@@ -218,9 +217,71 @@ class Sorting {
     }
 };
 
+void generateHTML(const vector<pair<string, StudentRating>>& studentInfosVector, const string& filename) {
+    ofstream htmlFile(filename);
+
+    if (!htmlFile.is_open()) {
+        cerr << "Error: Could not open file " << filename << endl;
+        return;
+    }
+
+    htmlFile << "<!DOCTYPE html>\n";
+    htmlFile << "<html>\n";
+    htmlFile << "<head>\n";
+    htmlFile << "<title>Student Ratings</title>\n";
+    htmlFile << "<style>\n";
+    htmlFile << "table, th, td { border: 1px solid black; border-collapse: collapse; }\n";
+    htmlFile << "th { background-color: #ccc; }\n";
+    htmlFile << ".good { background-color: #90ee90; }\n";
+    htmlFile << ".average { background-color: #ffff8c; }\n";
+    htmlFile << ".poor { background-color: #ffb6c1; }\n";
+    htmlFile << ".null { background-color: #c9c9c9; }\n";
+    htmlFile << "</style>\n";
+    htmlFile << "</head>\n";
+    htmlFile << "<body>\n";
+    htmlFile << "<table>\n";
+    htmlFile << "<tr><th>Name</th><th>Correct Solutions</th><th>Rating</th></tr>\n";
+
+    for (const auto& studentInfo : studentInfosVector) {
+        const string& name = studentInfo.first;
+        const StudentRating& rating = studentInfo.second;
+        const char* ratingClass;
+
+        switch (rating.rating) {
+            case StudentRating::Rating::Good:
+                ratingClass = "good";
+                break;
+            case StudentRating::Rating::Average:
+                ratingClass = "average";
+                break;
+            case StudentRating::Rating::Poor:
+                ratingClass = "poor";
+                break;
+            case StudentRating::Rating::Null:
+            default:
+                ratingClass = "null";
+                break;
+        }
+
+        htmlFile << "<tr class=\"" << ratingClass << "\"><td>" << name << "</td><td>" << rating.correctSolutions << "</td><td>" << ratingClass << "</td></tr>\n";
+    }
+
+    htmlFile << "</table>\n";
+    htmlFile << "</body>\n";
+    htmlFile << "</html>\n";
+
+    htmlFile.close();
+}
+
+string getHTMLFilename(const string& filename, char separator = '.') {
+    size_t pos = filename.find_last_of(separator);
+    if (pos != std::string::npos) {
+        return filename.substr(0, pos) + ".html";
+    }
+    return filename + ".html";
+}
 
 int main() {
-    setlocale(LC_ALL, "ru-RU.UTF-8");
     double epsilon = 1e-5; // точность
     map<string, StudentRating> studentInfos;
     vector<pair<string, StudentRating>> studentInfosVector;
@@ -267,6 +328,7 @@ int main() {
         outputFile.writeNameAndRootComparison(studentInfo.first, studentInfo.second.correctSolutions);
     }
 
-    return 0;
+    generateHTML(studentInfosVector, getHTMLFilename(filename));
 
+    return 0;
 }
