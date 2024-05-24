@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Student Ratings</title>
+<style>
+table, th, td { border: 1px solid black; border-collapse: collapse; }
+th { background-color: #ccc; }
+.good { background-color: #90ee90; }
+.average { background-color: #ffff8c; }
+.poor { background-color: #ffb6c1; }
+.null { background-color: #c9c9c9; }
+div.color-key { display: inline-block; vertical-align: top; margin-left: 20px; width: 380px; }
+table { float: left; }
+</style>
+</head>
+<body>
+<table>
+<tr><th>Name</th><th>Correct Solutions</th></tr>
+<tr><td class="poor">А.В.Смирнов</td><td class="poor">4</td></tr>
+<tr><td class="average">Б.Г.Петров</td><td class="average">2</td></tr>
+<tr><td class="average">В.Д.Сидоров</td><td class="average">4</td></tr>
+<tr><td class="average">Г.Е.Кузнецов</td><td class="average">2</td></tr>
+<tr><td class="average">Д.Ж.Морозов</td><td class="average">5</td></tr>
+<tr><td class="average">Е.З.Волков</td><td class="average">5</td></tr>
+<tr><td class="average">Ж.И.Алексеев</td><td class="average">2</td></tr>
+<tr><td class="average">З.К.Лебедев</td><td class="average">1</td></tr>
+<tr><td class="average">И.Л.Егоров</td><td class="average">3</td></tr>
+<tr><td class="good">К.М.Павлов</td><td class="good">1</td></tr>
+<tr><td class="average">Л.Н.Семенов</td><td class="average">4</td></tr>
+<tr><td class="good">М.О.Горбачев</td><td class="good">6</td></tr>
+<tr><td class="average">Н.П.Прохоров</td><td class="average">1</td></tr>
+<tr><td class="good">О.Р.Рожков</td><td class="good">6</td></tr>
+<tr><td class="average">П.С.Стрелков</td><td class="average">0</td></tr>
+<tr><td class="average">Р.Т.Исаев</td><td class="average">2</td></tr>
+<tr><td class="good">С.У.Овчинников</td><td class="good">6</td></tr>
+<tr><td class="average">Т.Ф.Соболев</td><td class="average">0</td></tr>
+<tr><td class="average">Ф.Х.Русаков</td><td class="average">5</td></tr>
+<tr><td class="average">Х.Ц.Миронов</td><td class="average">0</td></tr>
+<tr><td class="average">Ц.Ч.Шубин</td><td class="average">1</td></tr>
+<tr><td class="null">Ч.Ш.Якушев</td><td class="null">2</td></tr>
+<tr><td class="average">Ш.Щ.Кондратьев</td><td class="average">0</td></tr>
+<tr><td class="good">Щ.Ъ.Савельев</td><td class="good">2</td></tr>
+<tr><td class="average">Ъ.Ы.Панфилов</td><td class="average">0</td></tr>
+<tr><td class="average">Ы.Ь.Копылов</td><td class="average">1</td></tr>
+<tr><td class="good">Ь.Э.Мухин</td><td class="good">2</td></tr>
+<tr><td class="average">Э.Ю.Шарапов</td><td class="average">0</td></tr>
+<tr><td class="average">Ю.Я.Орехов</td><td class="average">1</td></tr>
+<tr><td class="average">Я.А.Медведев</td><td class="average">2</td></tr>
+</table>
+<div class="color-key">
+<p>Ключ цветов:</p>
+<ul>
+<li><span class="good">●</span> Хорошо: всегда решают задачи правильно</li>
+<li><span class="average">●</span> Среднее: есть шанс решить задачу правильно, но могут также ошибаться</li>
+<li><span class="poor">●</span> Плохо: всегда пишут, что корень один и это 0</li>
+<li><span class="null">●</span> Null: требуется дополнительный вопрос</li>
+</ul>
+<p>Color key:</p>
+<ul>
+<li><span class="good">●</span> Good: always solve tasks correctly</li>
+<li><span class="average">●</span> Average: have a chance to solve tasks correctly, but can also make mistakes</li>
+<li><span class="poor">●</span> Poor: always write that the root is one and it is 0</li>
+<li><span class="null">●</span> Null: requires an additional question</li>
+</ul>
+</div>
+</body>
+</html>

@@ -14,7 +14,6 @@
 #include <map>
 using namespace std;
 
-
 struct Solution {
     string equation;
     pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
@@ -217,11 +216,19 @@ class Sorting {
     }
 };
 
-void generateHTML(const vector<pair<string, StudentRating>>& studentInfosVector, const string& filename) {
-    ofstream htmlFile(filename);
+string getHTMLFilename(const string& filename, char separator = '.') {
+    size_t pos = filename.find_last_of(separator);
+    if (pos != string::npos) {
+        return filename.substr(0, pos) + ".html";
+    }
+    return filename + ".html";
+}
+
+void generateHTML(const std::vector<std::pair<std::string, StudentRating>>& studentInfosVector, const std::string& filename) {
+    std::ofstream htmlFile(filename);
 
     if (!htmlFile.is_open()) {
-        cerr << "Error: Could not open file " << filename << endl;
+        std::cerr << "Error: Could not open file " << filename << std::endl;
         return;
     }
 
@@ -236,14 +243,16 @@ void generateHTML(const vector<pair<string, StudentRating>>& studentInfosVector,
     htmlFile << ".average { background-color: #ffff8c; }\n";
     htmlFile << ".poor { background-color: #ffb6c1; }\n";
     htmlFile << ".null { background-color: #c9c9c9; }\n";
+    htmlFile << "div.color-key { display: inline-block; vertical-align: top; margin-left: 20px; width: 380px; }\n";
+    htmlFile << "table { float: left; }\n";
     htmlFile << "</style>\n";
     htmlFile << "</head>\n";
     htmlFile << "<body>\n";
     htmlFile << "<table>\n";
-    htmlFile << "<tr><th>Name</th><th>Correct Solutions</th><th>Rating</th></tr>\n";
+    htmlFile << "<tr><th>Name</th><th>Correct Solutions</th></tr>\n";
 
     for (const auto& studentInfo : studentInfosVector) {
-        const string& name = studentInfo.first;
+        const std::string& name = studentInfo.first;
         const StudentRating& rating = studentInfo.second;
         const char* ratingClass;
 
@@ -263,22 +272,30 @@ void generateHTML(const vector<pair<string, StudentRating>>& studentInfosVector,
                 break;
         }
 
-        htmlFile << "<tr class=\"" << ratingClass << "\"><td>" << name << "</td><td>" << rating.correctSolutions << "</td><td>" << ratingClass << "</td></tr>\n";
+        htmlFile << "<tr><td class=\"" << ratingClass << "\">" << name << "</td><td class=\"" << ratingClass << "\">" << rating.correctSolutions << "</td></tr>\n";
     }
 
     htmlFile << "</table>\n";
+    htmlFile << "<div class=\"color-key\">\n";
+    htmlFile << "<p>Ключ цветов:</p>\n";
+    htmlFile << "<ul>\n";
+    htmlFile << "<li><span class=\"good\">●</span> Хорошо: всегда решают задачи правильно</li>\n";
+    htmlFile << "<li><span class=\"average\">●</span> Среднее: есть шанс решить задачу правильно, но могут также ошибаться</li>\n";
+    htmlFile << "<li><span class=\"poor\">●</span> Плохо: всегда пишут, что корень один и это 0</li>\n";
+    htmlFile << "<li><span class=\"null\">●</span> Null: требуется дополнительный вопрос</li>\n";
+    htmlFile << "</ul>\n";
+    htmlFile << "<p>Color key:</p>\n";
+    htmlFile << "<ul>\n";
+    htmlFile << "<li><span class=\"good\">●</span> Good: always solve tasks correctly</li>\n";
+    htmlFile << "<li><span class=\"average\">●</span> Average: have a chance to solve tasks correctly, but can also make mistakes</li>\n";
+    htmlFile << "<li><span class=\"poor\">●</span> Poor: always write that the root is one and it is 0</li>\n";
+    htmlFile << "<li><span class=\"null\">●</span> Null: requires an additional question</li>\n";
+    htmlFile << "</ul>\n";  
+    htmlFile << "</div>\n";
     htmlFile << "</body>\n";
     htmlFile << "</html>\n";
 
     htmlFile.close();
-}
-
-string getHTMLFilename(const string& filename, char separator = '.') {
-    size_t pos = filename.find_last_of(separator);
-    if (pos != std::string::npos) {
-        return filename.substr(0, pos) + ".html";
-    }
-    return filename + ".html";
 }
 
 int main() {

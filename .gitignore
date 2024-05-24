@@ -18,8 +18,14 @@
 # Except text files
 !*.txt
 
+# Except text files
+!*.html
+
 # Except gitattributes file (if it's needed)
 !.gitattributes
+
+# Не исключаем папку GLFW
+!examples/
 
 # Visual Studio 2015/2017 cache/options directory
 .vs/
