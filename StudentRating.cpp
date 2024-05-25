@@ -1,6 +1,7 @@
 
 #include "StudentRating.h"
 
+
 void processSolution(Solution sol, double epsilon, map<string, StudentRating>& studentInfos) {
     auto it = studentInfos.find(sol.name);
     if (it == studentInfos.end()) {

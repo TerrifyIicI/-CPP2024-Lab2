@@ -1,4 +1,5 @@
-#include "DataStructures.h"
+#include "ComplexNumber.h"
+
 
 // Перегрузка оператора вывода в поток
 ostream& operator<<(ostream& os, const ComplexNumber& cn) {

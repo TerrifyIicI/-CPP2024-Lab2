@@ -1,7 +1,7 @@
 #ifndef SOLUTIONVALIDATOR_H
 #define SOLUTIONVALIDATOR_H
 
-#include "DataStructures.h"
+#include "ComplexNumber.h"
 #include <string>
 #include <string.h>
 #include <cmath>

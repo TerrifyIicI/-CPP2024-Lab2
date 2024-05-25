@@ -1,5 +1,5 @@
-#ifndef DATASTRUCTURES_H
-#define DATASTRUCTURES_H
+#ifndef COMPLEXNUMBER_H
+#define COMPLEXNUMBER_H
 #include <cmath>
 #include <sstream>
 #include <complex>
@@ -25,11 +25,6 @@ ostream& operator<<(ostream& os, const ComplexNumber& cn);
 
 ComplexNumber is_valid_number(const string& number);
 
-struct Solution {
-    string equation;
-    pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
-    string name;
-};
 
 
-#endif // DATASTRUCTURES_H
+#endif // COMPLEXNUMBER_H

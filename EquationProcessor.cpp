@@ -1,5 +1,5 @@
 #include "EquationProcessor.h"
-#include "DataStructures.h"
+#include "ComplexNumber.h"
 
 
 QuadraticEquation EquationProcessor::parseEquation(const char* line) {

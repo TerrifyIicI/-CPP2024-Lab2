@@ -3,7 +3,7 @@
 
 #include <map>
 #include <string>
-#include "DataStructures.h"
+#include "Solution.h"
 #include "EquationProcessor.h"
 
 struct StudentRating {

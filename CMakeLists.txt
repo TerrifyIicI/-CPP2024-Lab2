@@ -6,10 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 set(SOURCES
     Source.cpp
-    DataStructures.cpp
+    Solution.cpp
+    FileReader.cpp
+    FileWriter.cpp
+    ComplexNumber.cpp
     EquationProcessor.cpp
     StudentRating.cpp
+    Sorting.cpp
     GenerateHTML.cpp
+    
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
