@@ -25,4 +25,11 @@ ostream& operator<<(ostream& os, const ComplexNumber& cn);
 
 ComplexNumber is_valid_number(const string& number);
 
+struct Solution {
+    string equation;
+    pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
+    string name;
+};
+
+
 #endif // DATASTRUCTURES_H

@@ -8,6 +8,8 @@ set(SOURCES
     Source.cpp
     DataStructures.cpp
     EquationProcessor.cpp
+    StudentRating.cpp
+    GenerateHTML.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

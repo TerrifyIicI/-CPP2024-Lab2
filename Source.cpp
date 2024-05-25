@@ -11,14 +11,10 @@
 #include <sstream>
 #include "DataStructures.h"
 #include "EquationProcessor.h"
+#include "StudentRating.h"
+#include "GenerateHTML.h"
 #include <map>
 using namespace std;
-
-struct Solution {
-    string equation;
-    pair<ComplexNumber, ComplexNumber> solutions; // Пара комплексных чисел для хранения двух корней
-    string name;
-};
 
 Solution processLine(const string& line) {
     Solution sol;
@@ -104,67 +100,8 @@ public:
         return processLine(line);
     }
 };
-struct StudentRating {
-    int correctSolutions;
-    enum class Rating { Good, Average, Poor, Null }; // Перемещаем перечисление внутрь структуры
-    Rating rating;
-};
 
-void processSolution(Solution sol, double epsilon, map<string, StudentRating>& studentInfos) {
-    auto it = studentInfos.find(sol.name);
-    if (it == studentInfos.end()) {
-        // Если студента нет в списке, добавляем его с начальными значениями
-        studentInfos[sol.name] = StudentRating{0, StudentRating::Rating::Null};
-    }
 
-    StudentRating& studentInfo = studentInfos[sol.name];
-
-    // Проверяем, является ли решение нулевым
-    bool isZeroSolution = EquationProcessor().compareRoots(pair<ComplexNumber, ComplexNumber>({0,0}, {0,0}), sol.solutions, epsilon);
-
-    // Проверяем, правильное ли решение
-    bool rootsAreEqual = EquationProcessor().compareEquationAndSolutions(sol.equation, sol.solutions, epsilon);
-
-    // Обновляем количество правильно решенных задач
-    if (rootsAreEqual) {
-        studentInfo.correctSolutions++;
-    }
-
-    // Инициализация рейтинга или обновление существующего
-    if (studentInfo.rating == StudentRating::Rating::Null) {
-        // Если решение нулевое и неправильное
-        if (isZeroSolution && !rootsAreEqual) {
-            studentInfo.rating = StudentRating::Rating::Poor;
-        }
-        // Если решение не нулевое и неправильное
-        else if (!isZeroSolution && !rootsAreEqual) {
-            studentInfo.rating = StudentRating::Rating::Average;
-        }
-        // Если решение не нулевое и правильное
-        else if (!isZeroSolution && rootsAreEqual) {
-            studentInfo.rating = StudentRating::Rating::Good;
-        }
-        // Если решение нулевое и правильное
-        else if (isZeroSolution && rootsAreEqual) {
-            studentInfo.rating = StudentRating::Rating::Null;
-        }
-
-    } else if (studentInfo.rating == StudentRating::Rating::Good) {
-        // Если текущий ответ правильный, ничего не делаем
-        if (!rootsAreEqual) {
-            // Если текущий ответ неправильный, переводим в средний
-            studentInfo.rating = StudentRating::Rating::Average;
-        }
-    } else if (studentInfo.rating == StudentRating::Rating::Poor) {
-        // Если текущий ответ неправильный, ничего не делаем
-        if (!isZeroSolution) {
-            // Если текущий ответ не нулевой, переводим в средний
-            studentInfo.rating = StudentRating::Rating::Average;
-        }
-    } else if (studentInfo.rating == StudentRating::Rating::Average) {
-        // Если рейтинг уже средний, никаких изменений не производим
-    }
-}
 class FileWriter {
 public:
     FILE* file;
@@ -222,80 +159,6 @@ string getHTMLFilename(const string& filename, char separator = '.') {
         return filename.substr(0, pos) + ".html";
     }
     return filename + ".html";
-}
-
-void generateHTML(const std::vector<std::pair<std::string, StudentRating>>& studentInfosVector, const std::string& filename) {
-    std::ofstream htmlFile(filename);
-
-    if (!htmlFile.is_open()) {
-        std::cerr << "Error: Could not open file " << filename << std::endl;
-        return;
-    }
-
-    htmlFile << "<!DOCTYPE html>\n";
-    htmlFile << "<html>\n";
-    htmlFile << "<head>\n";
-    htmlFile << "<title>Student Ratings</title>\n";
-    htmlFile << "<style>\n";
-    htmlFile << "table, th, td { border: 1px solid black; border-collapse: collapse; }\n";
-    htmlFile << "th { background-color: #ccc; }\n";
-    htmlFile << ".good { background-color: #90ee90; }\n";
-    htmlFile << ".average { background-color: #ffff8c; }\n";
-    htmlFile << ".poor { background-color: #ffb6c1; }\n";
-    htmlFile << ".null { background-color: #c9c9c9; }\n";
-    htmlFile << "div.color-key { display: inline-block; vertical-align: top; margin-left: 20px; width: 380px; }\n";
-    htmlFile << "table { float: left; }\n";
-    htmlFile << "</style>\n";
-    htmlFile << "</head>\n";
-    htmlFile << "<body>\n";
-    htmlFile << "<table>\n";
-    htmlFile << "<tr><th>Name</th><th>Correct Solutions</th></tr>\n";
-
-    for (const auto& studentInfo : studentInfosVector) {
-        const std::string& name = studentInfo.first;
-        const StudentRating& rating = studentInfo.second;
-        const char* ratingClass;
-
-        switch (rating.rating) {
-            case StudentRating::Rating::Good:
-                ratingClass = "good";
-                break;
-            case StudentRating::Rating::Average:
-                ratingClass = "average";
-                break;
-            case StudentRating::Rating::Poor:
-                ratingClass = "poor";
-                break;
-            case StudentRating::Rating::Null:
-            default:
-                ratingClass = "null";
-                break;
-        }
-
-        htmlFile << "<tr><td class=\"" << ratingClass << "\">" << name << "</td><td class=\"" << ratingClass << "\">" << rating.correctSolutions << "</td></tr>\n";
-    }
-
-    htmlFile << "</table>\n";
-    htmlFile << "<div class=\"color-key\">\n";
-    htmlFile << "<p>Ключ цветов:</p>\n";
-    htmlFile << "<ul>\n";
-    htmlFile << "<li><span class=\"good\">●</span> Хорошо: всегда решают задачи правильно</li>\n";
-    htmlFile << "<li><span class=\"average\">●</span> Среднее: есть шанс решить задачу правильно, но могут также ошибаться</li>\n";
-    htmlFile << "<li><span class=\"poor\">●</span> Плохо: всегда пишут, что корень один и это 0</li>\n";
-    htmlFile << "<li><span class=\"null\">●</span> Null: требуется дополнительный вопрос</li>\n";
-    htmlFile << "</ul>\n";
-    htmlFile << "<p>Color key:</p>\n";
-    htmlFile << "<ul>\n";
-    htmlFile << "<li><span class=\"good\">●</span> Good: always solve tasks correctly</li>\n";
-    htmlFile << "<li><span class=\"average\">●</span> Average: have a chance to solve tasks correctly, but can also make mistakes</li>\n";
-    htmlFile << "<li><span class=\"poor\">●</span> Poor: always write that the root is one and it is 0</li>\n";
-    htmlFile << "<li><span class=\"null\">●</span> Null: requires an additional question</li>\n";
-    htmlFile << "</ul>\n";  
-    htmlFile << "</div>\n";
-    htmlFile << "</body>\n";
-    htmlFile << "</html>\n";
-
-    htmlFile.close();
 }
 
 int main() {
